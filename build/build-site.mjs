@@ -1028,6 +1028,7 @@ fs.writeFileSync(path.join(DIST, 'llms.txt'),
   `## Materials\n${PRODUCTS.map(p => `- ${p.name}: ${p.card} (${SITE.domain}/products/${p.slug})`).join('\n')}\n\n` +
   `## Pages\n- Home: ${SITE.domain}/\n- Contact: ${SITE.domain}/contact\n- Sell scrap: ${SITE.domain}/sell-scrap\n` +
   `- Guides: ${SITE.domain}/guides/\n` +
+  GUIDES.map(g => `- ${g.h1}: ${SITE.domain}/guides/${g.slug}`).join('\n') + '\n' +
   `\n## Arabic\n- Home: ${SITE.domain}/ar/\n` +
   Object.keys(AR_DEEP).map(slug => `- ${AR_DEEP[slug].name}: ${SITE.domain}/ar/products/${slug}`).join('\n') + '\n', 'utf8');
 
