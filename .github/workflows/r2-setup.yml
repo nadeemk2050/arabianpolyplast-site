@@ -1,0 +1,78 @@
+name: Set up R2 media
+
+# Run this ONCE, after R2 has been enabled in the Cloudflare dashboard and the
+# API token has been given "Workers R2 Storage: Edit". It creates the bucket,
+# binds it as MEDIA in market/wrangler.jsonc, commits that change and deploys,
+# so uploaded photos are stored in R2 instead of KV.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-deploy
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: market/package-lock.json
+
+      - name: Create the media bucket and bind it
+        working-directory: market
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/enable-r2.mjs
+
+      - name: Commit the binding
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add market/wrangler.jsonc
+          if git diff --cached --quiet; then
+            echo "wrangler.jsonc already up to date"
+          else
+            git commit -m "Store market photos in R2"
+            git push
+          fi
+
+      - name: Install
+        working-directory: market
+        run: npm ci
+
+      - name: Test (Node build + live assertions)
+        working-directory: market
+        run: npm test
+
+      - name: Build for Cloudflare Workers
+        working-directory: market
+        env:
+          MARKET_TARGET: cloudflare
+        run: npm run build
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: market
+          command: deploy
+
+      - name: Check the worker is alive
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://market.arabianpolyplast.com/api/health || true)
+            echo "health: $code"
+            [ "$code" = "200" ] && break
+            sleep 10
+          done
