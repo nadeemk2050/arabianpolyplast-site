@@ -1,8 +1,9 @@
 import { canonical, materialName, priceLabel, SITE } from '#lib/market';
 import { mergedLive } from '#lib/store';
+import { getBindings } from '#lib/bindings.server';
 
-export async function GET({ platform }) {
-	const all = await mergedLive(platform?.env as { MARKET?: any } | undefined);
+export async function GET() {
+	const all = await mergedLive(await getBindings());
 
 	const lines: string[] = [];
 	lines.push(`# ${SITE.name}`);

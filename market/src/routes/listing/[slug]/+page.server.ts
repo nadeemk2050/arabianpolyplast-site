@@ -1,9 +1,10 @@
 import { error } from '@sveltejs/kit';
 import { listingBySlug, materialBySlug } from '#lib/market';
 import { getPosted } from '#lib/store';
+import { getBindings } from '#lib/bindings.server';
 
-export async function load({ params, platform }) {
-	const env = platform?.env as { MARKET?: any } | undefined;
+export async function load({ params }) {
+	const env = await getBindings();
 
 	const posted = await getPosted(env, params.slug);
 	if (posted) {

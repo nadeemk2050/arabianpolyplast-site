@@ -1,8 +1,9 @@
 import { materials } from '#lib/market';
 import { mergedLive } from '#lib/store';
+import { getBindings } from '#lib/bindings.server';
 
-export async function load({ platform }) {
-	const env = platform?.env as { MARKET?: any } | undefined;
+export async function load() {
+	const env = await getBindings();
 	const listings = await mergedLive(env);
 
 	const counts = new Map<string, number>();

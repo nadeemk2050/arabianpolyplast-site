@@ -1,7 +1,8 @@
 import { getMedia } from '#lib/store';
+import { getBindings } from '#lib/bindings.server';
 
-export async function GET({ params, platform, setHeaders }) {
-	const media = await getMedia(platform?.env as { MARKET?: any } | undefined, params.id);
+export async function GET({ params, setHeaders }) {
+	const media = await getMedia(await getBindings(), params.id);
 	if (!media) return new Response('Not found', { status: 404 });
 	setHeaders({
 		'content-type': media.type,

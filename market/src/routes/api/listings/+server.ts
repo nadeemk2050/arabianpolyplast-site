@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { createListing, type PostInput } from '#lib/store';
+import { getBindings } from '#lib/bindings.server';
 
-export async function POST({ request, platform, getClientAddress }) {
+export async function POST({ request, getClientAddress }) {
 	let body: PostInput;
 	try {
 		body = (await request.json()) as PostInput;
@@ -16,6 +17,6 @@ export async function POST({ request, platform, getClientAddress }) {
 		ip = request.headers.get('cf-connecting-ip') || '';
 	}
 
-	const result = await createListing(platform?.env as { MARKET?: any } | undefined, body, ip);
+	const result = await createListing(await getBindings(), body, ip);
 	return json(result, { status: result.ok ? 200 : 400 });
 }
