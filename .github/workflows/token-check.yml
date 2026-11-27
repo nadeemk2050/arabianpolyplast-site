@@ -22,20 +22,43 @@ jobs:
           set -u
           API=https://api.cloudflare.com/client/v4
           hdr=(-s -H "Authorization: Bearer $CF_TOKEN")
-
           code() { curl "${hdr[@]}" -o /dev/null -w "%{http_code}" "$1"; }
 
           echo "account id present : $([ -n "${CF_ACCOUNT:-}" ] && echo yes || echo NO)"
           echo ""
           echo "user/tokens/verify : $(code "$API/user/tokens/verify")"
+          echo "accounts (read)    : $(code "$API/accounts")"
           echo "pages/projects     : $(code "$API/accounts/$CF_ACCOUNT/pages/projects")"
           echo "workers/scripts    : $(code "$API/accounts/$CF_ACCOUNT/workers/scripts")"
-          echo "workers/subdomain  : $(code "$API/accounts/$CF_ACCOUNT/workers/subdomain")"
           echo "zones?name=...     : $(code "$API/zones?name=arabianpolyplast.com")"
           echo ""
 
+          TID=$(curl "${hdr[@]}" "$API/user/tokens/verify" \
+            | python3 -c "import sys,json;print((json.load(sys.stdin).get('result') or {}).get('id',''))" 2>/dev/null || true)
+          echo "token id           : ${TID:-none}"
+          DETAIL=$(code "$API/user/tokens/${TID:-none}")
+          echo "token detail       : $DETAIL"
+
+          if [ "${TID:-none}" != "none" ] && [ "$DETAIL" = "200" ]; then
+            curl "${hdr[@]}" "$API/user/tokens/$TID" | python3 - <<'PY'
+import sys, json
+d = json.load(sys.stdin).get('result') or {}
+print('token name         :', d.get('name'))
+for p in d.get('policies') or []:
+    groups = []
+    for g in p.get('permission_groups') or []:
+        groups.append(g.get('name') or g.get('id') or '?')
+    res = p.get('resources') or {}
+    scope = ','.join(sorted(res.keys())) if res else 'all'
+    print('policy', p.get('effect'), '|', ' + '.join(groups) or '(groups hidden)', '| scope:', scope)
+PY
+          else
+            echo "token detail is not readable with this token (needs User > API Tokens > Read)"
+          fi
+
           ZONE=$(curl "${hdr[@]}" "$API/zones?name=arabianpolyplast.com" \
             | python3 -c "import sys,json; d=json.load(sys.stdin); r=d.get('result') or [{}]; print(r[0].get('id',''))" 2>/dev/null || true)
+          echo ""
           echo "zone id            : ${ZONE:-none}"
           if [ -n "${ZONE:-}" ]; then
             echo "dns_records (read) : $(code "$API/zones/$ZONE/dns_records?per_page=1")"
@@ -44,16 +67,10 @@ jobs:
 
           echo ""
           echo "--- verdict ---"
+          echo "200 = allowed, 403 = permission missing on this token, 401 = invalid token."
           W=$(code "$API/accounts/$CF_ACCOUNT/workers/scripts")
-          if [ "$W" = "200" ]; then
-            echo "Workers: READ OK — the token has Workers Scripts at least Read."
-          else
-            echo "Workers: NOT readable ($W). Add Account > Workers Scripts > Edit to this token."
-          fi
+          [ "$W" = "200" ] && echo "Workers read OK. A deploy still needs Account > Workers Scripts > EDIT." \
+                           || echo "Workers not readable ($W) — add Account > Workers Scripts > Edit."
           P=$(code "$API/accounts/$CF_ACCOUNT/pages/projects")
-          if [ "$P" = "200" ]; then
-            echo "Pages:   OK — this is the token that deploys the static site."
-          else
-            echo "Pages:   NOT readable ($P)."
-          fi
-          echo "403 = permission missing on this token, 401 = token invalid, 200 = allowed."
+          [ "$P" = "200" ] && echo "Pages OK — this is the token GitHub deploys with." \
+                           || echo "Pages not readable ($P)."
