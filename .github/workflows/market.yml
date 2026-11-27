@@ -1,0 +1,58 @@
+name: Deploy Oman Scrap Market
+
+# Deploys the SvelteKit market in market/ as the Worker "oman-scrap-market",
+# served at https://market.arabianpolyplast.com.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'market/**'
+      - '.github/workflows/market.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: market/package-lock.json
+
+      - name: Install
+        working-directory: market
+        run: npm ci
+
+      - name: Test (Node build + live assertions)
+        working-directory: market
+        run: npm test
+
+      - name: Build for Cloudflare Workers
+        working-directory: market
+        env:
+          MARKET_TARGET: cloudflare
+        run: npm run build
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: market
+          command: deploy
+
+      - name: Ping IndexNow
+        run: |
+          curl -sS -o /dev/null -w "IndexNow: %{http_code}\n" \
+            "https://api.indexnow.org/indexnow?url=https://market.arabianpolyplast.com/&key=a7f3c1d9e04b47c8b2e6f5a90d1c3b8e" || true
