@@ -1,0 +1,29 @@
+name: KV cleanup
+
+# One-off: delete the storage-test listing and its image from the market KV.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Delete listing key
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: kv key delete listing:mkt-mwz8ixw8-o802 --namespace-id=bdd1cef571c5494c8fcd9851a48c456f --remote
+
+      - name: Delete image key
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: kv key delete img:mkt-mwz8ixw8-o802-0 --namespace-id=bdd1cef571c5494c8fcd9851a48c456f --remote
