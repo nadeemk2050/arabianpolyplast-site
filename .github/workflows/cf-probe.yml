@@ -19,11 +19,16 @@ jobs:
         run: |
           set -u
           API=https://api.cloudflare.com/client/v4
-          hdr=(-s -H "Authorization: Bearer $CF_TOKEN")
+          hdr=(-s -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json")
           code() { curl "${hdr[@]}" -o /dev/null -w "%{http_code}" "$1"; }
           echo "d1/database        : $(code "$API/accounts/$CF_ACCOUNT/d1/database")"
           echo "r2/buckets         : $(code "$API/accounts/$CF_ACCOUNT/r2/buckets")"
           echo "kv/namespaces      : $(code "$API/accounts/$CF_ACCOUNT/storage/kv/namespaces")"
-          echo "images/v1          : $(code "$API/accounts/$CF_ACCOUNT/images/v1")"
-          echo "workers/scripts    : $(code "$API/accounts/$CF_ACCOUNT/workers/scripts")"
-          echo "pages/projects     : $(code "$API/accounts/$CF_ACCOUNT/pages/projects")"
+          echo ""
+          echo "--- create attempts ---"
+          echo -n "kv create  : "
+          curl "${hdr[@]}" -X POST -d '{"title":"oman-scrap-market"}' "$API/accounts/$CF_ACCOUNT/storage/kv/namespaces" | head -c 400; echo
+          echo -n "d1 create  : "
+          curl "${hdr[@]}" -X POST -d '{"name":"oman-scrap-market"}' "$API/accounts/$CF_ACCOUNT/d1/database" | head -c 400; echo
+          echo -n "r2 create  : "
+          curl "${hdr[@]}" -X POST -d '{"name":"oman-scrap-market"}' "$API/accounts/$CF_ACCOUNT/r2/buckets" | head -c 400; echo
