@@ -23,6 +23,6 @@ jobs:
           curl -sS -X POST \
             -H "Authorization: Bearer $CF_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"keys":["listing:mkt-mwz8ixw8-o802","img:mkt-mwz8ixw8-o802-0"]}' \
+            -d '["listing:mkt-mwz8ixw8-o802","img:mkt-mwz8ixw8-o802-0"]' \
             "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/storage/kv/namespaces/$NS/bulk/delete"
           echo
